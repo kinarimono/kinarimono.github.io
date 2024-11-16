@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.1.2/dist/tailwind.min.css" rel="stylesheet">
+    <title>Event Data</title>
+    <style>
+        body {
+            background-color: #fee4d3;
+            /* Custom yellow background */
+            color: #f3746d;
+            /* Optional: Default text color */
+        }
+
+
+        .event-date {
+            font-size: 0.875rem;
+            /* Smaller text size */
+        }
+
+        .event-date .month,
+        .event-date .day {
+            font-size: 1rem;
+            /* Same font size for both day and month */
+            font-weight: normal;
+            margin-bottom: 0.5rem;
+            /* Adds spacing */
+            display: inline-block;
+            /* Ensures both elements are inline */
+        }
+
+        .month {
+            width: 100px;
+            /* Ensure all months have the same width */
+            text-align: center;
+            /* Center-align the text */
+        }
+
+        .bg-custom {
+            background-color: #ffffff;
+            /* Custom yellow background */
+            color: #f3746d;
+            /* Custom pinkish-red text */
+        }
+
+        .text-custom {
+            color: #f3746d;
+            /* Custom pinkish-red text */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Dropdown filter for selecting area -->
+    <div class="max-w-2xl mx-auto font-roboto my-6">
+        <label for="area-filter" class="text-xl font-semibold">Filter by Area:</label>
+        <select id="area-filter" class="w-full p-2 border rounded-md mt-2">
+            <option value="">Select an Area</option>
+        </select>
+    </div>
+
+    <div id="events-container" class="max-w-2xl mx-auto font-roboto"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/public-google-sheets-parser@latest"></script>
+    <script>
+        const sheetID = '1RQ2PZMRKjBVHpG0ettmuiDjjxzpF7OfFDfXlJDT0ElE';
+        const parser = new PublicGoogleSheetsParser(sheetID);
+
+        function formatDate(dateString) {
+            const datePattern = /^Date\((\d+),(\d+),(\d+)\)$/;
+            const match = dateString.match(datePattern);
+            if (!match) return null; // Return null if pattern does not match
+
+            const [_, year, month, day] = match;
+            const date = new Date(year, month, day);
+
+            // Format options for "8 December 2024" style
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            return date.toLocaleDateString('en-GB', options); // 'en-GB' gives the "8 December 2024" format
+        }
+
+        parser.parse().then(rows => {
+            const eventsContainer = document.getElementById('events-container');
+            const areaFilter = document.getElementById('area-filter');
+
+            // Group events by area
+            const eventsByArea = rows.reduce((acc, eventData) => {
+                const area = eventData['Area ----------------->'] || "Unknown Area";
+                if (!acc[area]) acc[area] = [];
+                acc[area].push(eventData);
+                return acc;
+            }, {});
+
+            // Populate area dropdown with options
+            Object.keys(eventsByArea).forEach(area => {
+                const option = document.createElement('option');
+                option.value = area;
+                option.textContent = area;
+                areaFilter.appendChild(option);
+            });
+
+            // Function to render events by area
+            function renderEventsForArea(selectedArea) {
+                eventsContainer.innerHTML = ''; // Clear previous events
+                if (!selectedArea) return; // If no area selected, do nothing
+
+                const selectedEvents = eventsByArea[selectedArea];
+                selectedEvents.forEach(eventData => {
+                    // Use formatDate function to convert date
+                    const dateString = eventData['Tanggal '] || "Unknown Date";
+                    const formattedDate = formatDate(dateString);
+
+                    // Only render event if the date is valid
+                    if (formattedDate) {
+                        // Split the formatted date into day and month
+                        const [day, month, year] = formattedDate.split(" ");
+
+                        const eventHTML = `
+    <div class="flex flex-col md:flex-row shadow-lg border rounded-lg my-4">
+        <div class="bg-custom text-center p-8 rounded-t-lg md:rounded-l-lg md:rounded-t-none">
+            <div class="text-5xl font-bold">${day}</div>
+            <div class="text-sm font-normal month">${month}</div>
+        </div>
+        <div class="flex flex-col justify-center px-6 py-4">
+            <a href="${eventData['Link Acara bit.ly/JFestAdd']}" target="_blank" class="text-custom text-xl uppercase mb-2">${eventData['Nama Acara (Link acara klik) Post atau edit event (komentar di chart) atau ke grup fb-> Join grup ->']}</a>
+            <div class="text-gray-600">${eventData['Lokasi (baca keterangan lebih lanjut di Facebook Page) Eventmu belum ada? perbaikan jadwal event? -->']}</div>
+        </div>
+    </div>
+`;
+
+
+                        eventsContainer.insertAdjacentHTML('beforeend', eventHTML);
+                    }
+                });
+            }
+
+            // Render events based on the selected area
+            areaFilter.addEventListener('change', function () {
+                const selectedArea = areaFilter.value;
+                renderEventsForArea(selectedArea);
+            });
+
+            // Trigger the rendering of the first selected area (if any)
+            renderEventsForArea(areaFilter.value);
+
+        }).catch(error => {
+            console.error('Error fetching data:', error);
+        });
+    </script>
+</body>
+
+</html>
